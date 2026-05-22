@@ -4,7 +4,9 @@ use crate::statistics::WriteStatistics;
 use arrow::datatypes::SchemaRef;
 use futures::StreamExt;
 use log::debug;
-use parquet::arrow::arrow_writer::{compute_leaves, get_column_writers, ArrowColumnChunk};
+#[allow(deprecated)]
+use parquet::arrow::arrow_writer::get_column_writers;
+use parquet::arrow::arrow_writer::{compute_leaves, ArrowColumnChunk};
 use parquet::arrow::ArrowSchemaConverter;
 use parquet::basic::Compression;
 use parquet::file::properties::WriterProperties;
@@ -56,7 +58,7 @@ where
     let parquet_schema = Arc::new(
         ArrowSchemaConverter::new()
             .with_coerce_types(writer_properties.coerce_types())
-            .convert(&schema)
+            .convert(schema.as_ref())
             .unwrap(),
     );
 
@@ -140,6 +142,9 @@ where
     I: RecordBatchIterator,
 {
     // Create writers for each of the leaf columns
+    // ArrowRowGroupWriterFactory requires an existing SerializedFileWriter, but row groups are
+    // encoded before the blocking writer task appends them to the file.
+    #[allow(deprecated)]
     let mut col_writers = get_column_writers(&parquet_schema, &writer_properties, &schema).unwrap();
 
     // generate the data and send it to the tasks (via the sender channels)
